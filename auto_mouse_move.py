@@ -149,8 +149,7 @@ def smooth_relative_move(dx, dy):
 def wiggle_mouse():
     dx, dy = random_wiggle_delta()
     smooth_relative_move(dx, dy)
-    smooth_relative_move(-dx, -dy)
-    print(f"Wiggled mouse by ({dx}, {dy}) and returned.", flush=True)
+    print(f"Moved mouse by ({dx}, {dy}).", flush=True)
 
 
 def main():
