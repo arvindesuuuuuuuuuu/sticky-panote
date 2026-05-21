@@ -77,10 +77,11 @@ def open_keyboard_inputs():
     return keyboard_fds
 
 
-def stop_shortcut_pressed(keyboard_fds, pressed_keys):
+def check_keyboard_activity(keyboard_fds, pressed_keys):
     if not keyboard_fds:
-        return False
+        return False, False
 
+    keyboard_changed = False
     readable, _, _ = select.select(keyboard_fds, [], [], 0)
 
     for keyboard_fd in readable:
@@ -99,6 +100,8 @@ def stop_shortcut_pressed(keyboard_fds, pressed_keys):
             if event_type != EV_KEY:
                 continue
 
+            keyboard_changed = True
+
             if value:
                 pressed_keys.add(code)
             else:
@@ -108,9 +111,9 @@ def stop_shortcut_pressed(keyboard_fds, pressed_keys):
             alt_pressed = KEY_LEFTALT in pressed_keys or KEY_RIGHTALT in pressed_keys
 
             if code in KEY_PAUSE_CODES and value == 1 and ctrl_pressed and alt_pressed:
-                return True
+                return keyboard_changed, True
 
-    return False
+    return keyboard_changed, False
 
 
 def random_wiggle_delta():
@@ -156,7 +159,7 @@ def main():
     if shutil.which("ydotool") is None:
         raise SystemExit("ydotool is not installed. Run: sudo apt install ydotool")
 
-    print("Moving mouse after 30 seconds of no user mouse movement.", flush=True)
+    print("Moving mouse after 30 seconds of no keyboard or mouse activity.", flush=True)
     print("Press Ctrl+C or Ctrl+Alt+Pause/Break to stop.", flush=True)
 
     mouse_fd = open_mouse_input()
@@ -166,12 +169,16 @@ def main():
 
     try:
         while True:
-            if stop_shortcut_pressed(keyboard_fds, pressed_keys):
+            keyboard_changed, stop_requested = check_keyboard_activity(
+                keyboard_fds, pressed_keys
+            )
+
+            if stop_requested:
                 print("\nStopped by Ctrl+Alt+Pause/Break.", flush=True)
                 send_notification("Stopped by shortcut.")
                 break
 
-            if mouse_input_changed(mouse_fd):
+            if keyboard_changed or mouse_input_changed(mouse_fd):
                 next_move_time = time.monotonic() + MOVE_INTERVAL_SECONDS
 
             if time.monotonic() >= next_move_time:
