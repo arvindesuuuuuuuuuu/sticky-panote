@@ -3,26 +3,32 @@ set -euo pipefail
 
 APP_DIR="/home/arvin/Infosoft/automove"
 PID_FILE="$APP_DIR/auto_mouse_move.pid"
+YDOTOOLD_PID_FILE="$APP_DIR/ydotoold.pid"
 LOG_FILE="$APP_DIR/auto_mouse_move.log"
-LOCAL_XAUTHORITY="$APP_DIR/.Xauthority.local"
-DISPLAY_NAME="${DISPLAY:-:0}"
-MUTTER_XAUTHORITY="$(find /run/user/$(id -u) -maxdepth 1 -name '.mutter-Xwaylandauth.*' -print -quit)"
+YDOTOOL_SOCKET="/tmp/automove-ydotool.sock"
 
-if [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-  exit 0
+if [[ -f "$PID_FILE" ]]; then
+  if kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+    notify-send "Auto Mouse Move" "Already running."
+    exit 0
+  fi
+
+  rm -f "$PID_FILE"
 fi
 
-if [[ -n "$MUTTER_XAUTHORITY" ]]; then
-  COOKIE="$(xauth -f "$MUTTER_XAUTHORITY" list | awk 'NR==1 {print $3}')"
-  if [[ -n "$COOKIE" ]]; then
-    rm -f "$LOCAL_XAUTHORITY"
-    xauth -f "$LOCAL_XAUTHORITY" add "$DISPLAY_NAME" MIT-MAGIC-COOKIE-1 "$COOKIE" >/dev/null 2>&1 || true
-    xauth -f "$LOCAL_XAUTHORITY" add "$(hostname)/unix${DISPLAY_NAME}" MIT-MAGIC-COOKIE-1 "$COOKIE" >/dev/null 2>&1 || true
-  fi
+if ! command -v ydotool >/dev/null 2>&1; then
+  echo "ydotool is not installed. Run: sudo apt install ydotool" > "$LOG_FILE"
+  notify-send "Auto Mouse Move" "Cannot start: ydotool is not installed."
+  exit 1
 fi
 
 cd "$APP_DIR"
-setsid env DISPLAY="$DISPLAY_NAME" XAUTHORITY="$LOCAL_XAUTHORITY" \
-  python3 -u "$APP_DIR/auto_mouse_move.py" > "$LOG_FILE" 2>&1 < /dev/null &
 
-echo "$!" > "$PID_FILE"
+if [[ ! -S "$YDOTOOL_SOCKET" ]]; then
+  rm -f "$YDOTOOL_SOCKET"
+  sg input -c "setsid ydotoold --socket-path='$YDOTOOL_SOCKET' --socket-perm=0660 > '$APP_DIR/ydotoold.log' 2>&1 < /dev/null & echo \$! > '$YDOTOOLD_PID_FILE'"
+  sleep 1
+fi
+
+sg input -c "setsid env YDOTOOL_SOCKET='$YDOTOOL_SOCKET' python3 -u '$APP_DIR/auto_mouse_move.py' > '$LOG_FILE' 2>&1 < /dev/null & echo \$! > '$PID_FILE'"
+notify-send "Auto Mouse Move" "Started."

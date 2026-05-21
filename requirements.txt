@@ -1,1 +1,2 @@
-pyautogui>=0.9.54
+# No Python packages are required.
+# System package required on Ubuntu Wayland: ydotool

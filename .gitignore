@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.log
+*.pid
+.Xauthority.local
+ydotoold.pid
+auto_mouse_move.pid
