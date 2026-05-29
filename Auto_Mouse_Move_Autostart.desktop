@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Auto Mouse Move
+Comment=Start moving the mouse every 30 seconds after login
+Exec=/home/arvin/Infosoft/automove/start_auto_mouse.sh
+Terminal=false
+Icon=input-mouse
+Categories=Utility;
+X-GNOME-Autostart-enabled=true
