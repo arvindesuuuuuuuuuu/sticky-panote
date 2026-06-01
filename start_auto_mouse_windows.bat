@@ -4,6 +4,7 @@ setlocal
 set "APP_DIR=%~dp0"
 set "PID_FILE=%APP_DIR%auto_mouse_move_windows.pid"
 set "LOG_FILE=%APP_DIR%auto_mouse_move_windows.log"
+set "NOTIFY_SCRIPT=%APP_DIR%notify_auto_mouse_windows.vbs"
 
 if exist "%PID_FILE%" (
     for /f "usebackq delims=" %%P in ("%PID_FILE%") do (
@@ -30,3 +31,4 @@ if errorlevel 1 (
 )
 
 echo Auto Mouse Move started.
+start "" wscript.exe "%NOTIFY_SCRIPT%" "Auto Mouse Move started."

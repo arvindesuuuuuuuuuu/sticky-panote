@@ -1,6 +1,7 @@
 import ctypes
 import os
 import random
+import subprocess
 import sys
 import time
 from ctypes import wintypes
@@ -12,7 +13,9 @@ MIN_WIGGLE_PIXELS = 1
 MAX_WIGGLE_PIXELS = 3
 WIGGLE_STEPS = 1
 WIGGLE_STEP_DELAY_SECONDS = 0.03
-PID_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "auto_mouse_move_windows.pid")
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+PID_FILE = os.path.join(APP_DIR, "auto_mouse_move_windows.pid")
+NOTIFY_SCRIPT = os.path.join(APP_DIR, "notify_auto_mouse_windows.vbs")
 
 VK_CONTROL = 0x11
 VK_MENU = 0x12
@@ -61,6 +64,17 @@ def remove_pid_file():
     try:
         os.remove(PID_FILE)
     except FileNotFoundError:
+        pass
+
+
+def notify_stopped():
+    try:
+        subprocess.Popen(
+            ["wscript.exe", NOTIFY_SCRIPT, "Auto Mouse Move stopped."],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
         pass
 
 
@@ -164,6 +178,7 @@ def main():
         print("\nStopped.", flush=True)
     finally:
         remove_pid_file()
+        notify_stopped()
 
 
 if __name__ == "__main__":
