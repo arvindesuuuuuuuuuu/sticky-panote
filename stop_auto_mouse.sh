@@ -28,7 +28,7 @@ fi
 rm -f "$YDOTOOL_SOCKET"
 
 if [[ "$STOPPED" == true ]]; then
-  notify-send "Auto Mouse Move" "Stopped."
+  notify-send --app-name= "" "Stopped."
 else
-  notify-send "Auto Mouse Move" "Not running."
+  notify-send --app-name= "" "Not running."
 fi

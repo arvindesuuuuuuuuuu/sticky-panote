@@ -6,10 +6,23 @@ PID_FILE="$APP_DIR/auto_mouse_move.pid"
 YDOTOOLD_PID_FILE="$APP_DIR/ydotoold.pid"
 LOG_FILE="$APP_DIR/auto_mouse_move.log"
 YDOTOOL_SOCKET="/tmp/automove-ydotool.sock"
+SILENT=false
+WORKER_ENV=""
+
+if [[ "${1:-}" == "--silent" ]]; then
+  SILENT=true
+  WORKER_ENV="AUTOMOVE_SILENT=1 "
+fi
+
+notify() {
+  if [[ "$SILENT" == false ]]; then
+    notify-send --app-name= "" "$1"
+  fi
+}
 
 if [[ -f "$PID_FILE" ]]; then
   if kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-    notify-send "Auto Mouse Move" "Already running."
+    notify "Already running."
     exit 0
   fi
 
@@ -18,7 +31,7 @@ fi
 
 if ! command -v ydotool >/dev/null 2>&1; then
   echo "ydotool is not installed. Run: sudo apt install ydotool" > "$LOG_FILE"
-  notify-send "Auto Mouse Move" "Cannot start: ydotool is not installed."
+  notify "Cannot start: ydotool is not installed."
   exit 1
 fi
 
@@ -30,5 +43,5 @@ if [[ ! -S "$YDOTOOL_SOCKET" ]]; then
   sleep 1
 fi
 
-sg input -c "setsid env YDOTOOL_SOCKET='$YDOTOOL_SOCKET' python3 -u '$APP_DIR/auto_mouse_move.py' > '$LOG_FILE' 2>&1 < /dev/null & echo \$! > '$PID_FILE'"
-notify-send "Auto Mouse Move" "Started."
+sg input -c "setsid env ${WORKER_ENV}YDOTOOL_SOCKET='$YDOTOOL_SOCKET' python3 -u '$APP_DIR/auto_mouse_move.py' > '$LOG_FILE' 2>&1 < /dev/null & echo \$! > '$PID_FILE'"
+notify "Started."

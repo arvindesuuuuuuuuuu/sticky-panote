@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import select
@@ -5,6 +6,7 @@ import shutil
 import struct
 import subprocess
 import time
+from pathlib import Path
 
 
 MOVE_INTERVAL_SECONDS = 30
@@ -24,17 +26,66 @@ KEY_PAUSE_CODES = {
     119,  # Pause.
     411,  # Break.
 }
+KEY_END = 107
 KEY_RIGHTCTRL = 97
 KEY_RIGHTALT = 100
 YDOTOOL_SOCKET = os.environ.get("YDOTOOL_SOCKET", "/tmp/automove-ydotool.sock")
+CONFIG_FILE = Path(__file__).resolve().parent / "auto_mouse_move_config.json"
+
+
+DEFAULT_PAUSE_KEY_CODES = sorted(KEY_PAUSE_CODES)
+DEFAULT_STOP_KEY_CODE = KEY_END
+
+
+def load_shortcut_config():
+    config = {
+        "pause_key_codes": DEFAULT_PAUSE_KEY_CODES,
+        "stop_key_code": DEFAULT_STOP_KEY_CODE,
+    }
+
+    try:
+        saved_config = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return config
+
+    pause_key_codes = saved_config.get("pause_key_codes")
+    stop_key_code = saved_config.get("stop_key_code")
+
+    if isinstance(pause_key_codes, list):
+        valid_pause_codes = []
+        for key_code in pause_key_codes:
+            try:
+                valid_pause_codes.append(int(key_code))
+            except (TypeError, ValueError):
+                continue
+
+        if valid_pause_codes:
+            config["pause_key_codes"] = sorted(set(valid_pause_codes))
+
+    try:
+        config["stop_key_code"] = int(stop_key_code)
+    except (TypeError, ValueError):
+        pass
+
+    return config
+
+
+def shortcut_label(key_codes):
+    if isinstance(key_codes, int):
+        return f"configured shortcut key {key_codes}"
+
+    return "configured shortcut keys " + ",".join(str(code) for code in sorted(key_codes))
 
 
 def send_notification(message):
+    if os.environ.get("AUTOMOVE_SILENT") == "1":
+        return
+
     if shutil.which("notify-send") is None:
         return
 
     subprocess.run(
-        ["notify-send", "Auto Mouse Move", message],
+        ["notify-send", "--app-name=", "", message],
         check=False,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -77,9 +128,9 @@ def open_keyboard_inputs():
     return keyboard_fds
 
 
-def check_keyboard_activity(keyboard_fds, pressed_keys):
+def check_keyboard_activity(keyboard_fds, pressed_keys, pause_key_codes, stop_key_code):
     if not keyboard_fds:
-        return False, False
+        return False, False, False
 
     keyboard_changed = False
     readable, _, _ = select.select(keyboard_fds, [], [], 0)
@@ -110,10 +161,14 @@ def check_keyboard_activity(keyboard_fds, pressed_keys):
             ctrl_pressed = KEY_LEFTCTRL in pressed_keys or KEY_RIGHTCTRL in pressed_keys
             alt_pressed = KEY_LEFTALT in pressed_keys or KEY_RIGHTALT in pressed_keys
 
-            if code in KEY_PAUSE_CODES and value == 1 and ctrl_pressed and alt_pressed:
-                return keyboard_changed, True
+            if value == 1 and ctrl_pressed and alt_pressed:
+                if code in pause_key_codes:
+                    return keyboard_changed, True, False
 
-    return keyboard_changed, False
+                if code == stop_key_code:
+                    return keyboard_changed, False, True
+
+    return keyboard_changed, False, False
 
 
 def random_wiggle_delta():
@@ -159,24 +214,48 @@ def main():
     if shutil.which("ydotool") is None:
         raise SystemExit("ydotool is not installed. Run: sudo apt install ydotool")
 
+    shortcut_config = load_shortcut_config()
+    pause_key_codes = set(shortcut_config["pause_key_codes"])
+    stop_key_code = shortcut_config["stop_key_code"]
+
     print("Moving mouse after 30 seconds of no keyboard or mouse activity.", flush=True)
-    print("Press Ctrl+C or Ctrl+Alt+Pause/Break to stop.", flush=True)
+    print(f"Pause/resume uses {shortcut_label(pause_key_codes)}.", flush=True)
+    print(f"Stop uses {shortcut_label(stop_key_code)}.", flush=True)
+    print("Press Ctrl+C to stop.", flush=True)
 
     mouse_fd = open_mouse_input()
     keyboard_fds = open_keyboard_inputs()
     pressed_keys = set()
     next_move_time = time.monotonic() + MOVE_INTERVAL_SECONDS
+    paused = False
 
     try:
         while True:
-            keyboard_changed, stop_requested = check_keyboard_activity(
-                keyboard_fds, pressed_keys
+            keyboard_changed, pause_requested, stop_requested = check_keyboard_activity(
+                keyboard_fds,
+                pressed_keys,
+                pause_key_codes,
+                stop_key_code,
             )
 
             if stop_requested:
-                print("\nStopped by Ctrl+Alt+Pause/Break.", flush=True)
+                print("\nStopped by shortcut.", flush=True)
                 send_notification("Stopped by shortcut.")
                 break
+
+            if pause_requested:
+                paused = not paused
+                if paused:
+                    print("\nPaused by shortcut.", flush=True)
+                    send_notification("Paused.")
+                else:
+                    next_move_time = time.monotonic() + MOVE_INTERVAL_SECONDS
+                    print("\nResumed by shortcut.", flush=True)
+                    send_notification("Resumed.")
+
+            if paused:
+                time.sleep(MOUSE_CHECK_INTERVAL_SECONDS)
+                continue
 
             if keyboard_changed or mouse_input_changed(mouse_fd):
                 next_move_time = time.monotonic() + MOVE_INTERVAL_SECONDS

@@ -1,0 +1,8 @@
+{
+  "pause_key_codes": [
+    99,
+    119,
+    411
+  ],
+  "stop_key_code": 107
+}

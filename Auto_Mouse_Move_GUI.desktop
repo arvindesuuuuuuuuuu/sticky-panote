@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=My Sticky Notes
+Comment=Sticky notes with AutoMove controls
+Exec=/home/arvin/Infosoft/automove/start_auto_mouse_gui.sh
+Terminal=false
+Icon=accessories-text-editor
+StartupWMClass=MyStickyNotes
+Categories=Utility;
+X-GNOME-Autostart-enabled=true

@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Name=Auto Mouse Move
-Comment=Start moving the mouse every 30 seconds after login
-Exec=/home/arvin/Infosoft/automove/start_auto_mouse.sh
+Comment=Start Auto Mouse Move silently after login
+Exec=/home/arvin/Infosoft/automove/start_auto_mouse.sh --silent
 Terminal=false
 Icon=input-mouse
 Categories=Utility;
