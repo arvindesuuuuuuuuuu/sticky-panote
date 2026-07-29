@@ -1,0 +1,28 @@
+Note 2
+
+Select * from users order by id desc
+Select * from leave_credits order by id desc
+
+Not Required
+-Voluntary Work
+-Work Experience
+-Other Information
+-L&D
+
+
+-the Other Components fixed the value the has no behavioral indicator
+-arrange fixed position from Basic, Intermediate, Advanced, Superior in the selection
+
+NON Plantilla
+-COS
+-Job Order
+
+not showing Tranche, SG and Step and can input starting salary
+-COS
+-Elective
+-JO
+-Permanent
+
+add validation in make regular button
+
+35 36 38

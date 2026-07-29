@@ -1,0 +1,160 @@
+artisan list - all commands
+
+How to create new Model?
+
+I use my customized creations, but first used this on creating new Model with all its package.
+artisan make:model ModelName -a
+rm app\Http\Controllers\ModelNameController
+artisan make:controller ModelNameController -r
+rm app\Http\Requests\StoreModelName
+rm app\Http\Requests\UpdateModelName
+artisan make:requests ModelName
+
+ls
+pwd
+cd infosoft
+ls	
+cd laradock/ (change laradock to actual folder directory)
+docker compose exec workspace bash
+ls
+artisan route:list
+
+//storage link for viewing uploads
+artisan storage:link
+ls public | grep storage
+ls public/storage
+
+//install composer
+cd laradock/
+docker compose exec workspace bash
+composer install
+artisan migrate
+artisan db:seed
+
+//fresh migrate
+artisan migrate:fresh --seed
+
+
+//troubleshoot
+artisan optimize:clear
+artisan migrate:status
+
+//create .env file node js
+touch .env
+
+//creating seed
+cd lts-panabo-api/
+su laradock
+artisan make:seeder [filename]
+
+//Run Code
+artisan db:seed --class=OldOfficialSeeder
+artisan db:seed --class=BidDocxAssignmentsBladeFileSeeder
+
+//Push specific file
+git status
+git branch
+git add .
+git status
+git commit -m "Create seeder for old officials dependent on users.csv" "" for the comment changes for the push
+git log
+git remote -v
+git branch
+git push origin resolution-seeders
+git log
+
+//Push all changes
+cd project-name	x
+git status
+git add .
+git commit -m "Your commit message"
+git push origin main
+
+//Pull specific file
+git pull origin resolution-seeders
+
+//Pull all changes
+cd project-name
+git pull origin main
+
+//Create and Switch to the New Branch
+git checkout -b branch-name
+
+//Get the latest updated in the parent branch (no fast forward)
+git pull origin dev --no-ff
+git add .
+git commit -m ""
+git push origin dev_arvin(branch name)
+then merge the from dev_arvin and to dev
+approved and merge squash
+
+//Docker
+sudo systemctl stop docker -temp stop docker
+
+//restart laradock
+docker compose down
+docker compose up -d nginx postgres pgadmin
+
+//xampp
+sudo /opt/lampp/lampp start - start all services
+sudo /opt/lampp/manager-linux-x64.run
+
+//sales-api
+sudo chmod -R 777 storage
+
+
+PPMP-DAVOC-APP
+password: Infosoftppmp2024!
+
+HCDC-Research
+password: Infosofthcdc2026!
+
+Run to localhost
+	HOST=0.0.0.0 npm run dev
+		NODE_OPTIONS=--openssl-legacy-provider npm run serve
+	
+automousemove
+
+start
+./start_auto_mouse.sh
+GUI
+./start_auto_mouse_gui.sh
+
+stop
+./stop_auto_mouse.sh
+ctrl + alt + pause/break
+
+-------------->Deploying the system for front-end<--------------
+PR and Merge Squash
+Before deploying make sure to change the .env file into staging api and delete the dist folder [if exist]
+
+npm run generate
+
+scp -r ./dist root@159.223.86.244:/home/sales/sales-app[rename the file to avoid duplication]
+
+access the server
+
+ssh root@[ip address of the server]
+
+locate the sales folder
+
+delete old file
+rm -rf sales-app
+
+rename to replace the old to new file
+mv sales-app100 sales-app
+
+
+-------------->Deploying the system for back-end<--------------
+PR and Merge
+Before deploying make sure to checkout to parent branch first
+
+access the server
+
+ssh root@[ip address of the server]
+
+cd /home
+cd /sales/sales-api
+git fetch origin
+git pull origin dev-ojt[parent branch]
+

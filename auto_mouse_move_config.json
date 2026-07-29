@@ -4,5 +4,6 @@
     119,
     411
   ],
-  "stop_key_code": 107
+  "stop_key_code": 107,
+  "background_mode": "dark"
 }

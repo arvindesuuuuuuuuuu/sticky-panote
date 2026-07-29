@@ -1,0 +1,20 @@
+commit comment
+
+
+web
+
+-removed qualify, not qualify and incomplete requirements and moved the status of applicant instead
+-changed the Deadline to Application Deadline
+-removed no application status
+-fixed the Note for Upload Requirements overlaps the text
+-changed the text for Photo to Profile Picture
+-remove the decimal in Overall Score
+-changed Set Probation button name to Set Probationary Period
+-added format and placeholder for telephone	
+
+api
+
+-
+
+
+

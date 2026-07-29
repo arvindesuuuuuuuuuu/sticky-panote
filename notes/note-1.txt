@@ -1,0 +1,13 @@
+Note 1
+
+1.Start a new application
+Click the Create New Application button located below the Application History table.
+
+2.Select a vacant position
+Browse the list on the Vacancies page and click Select next to your desired position.
+(Note: If you selected a position before logging in, you will skip this step automatically.) <- in italic para noticeable
+
+3.Proceed to your profile
+Once selected, you will be taken directly to the Application Profile to complete your application.
+
+can you make that condition? like exclude a PO with **SALES INFORMATION that has sales invoice receipt type** 	
