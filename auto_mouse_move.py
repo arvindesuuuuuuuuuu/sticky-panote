@@ -30,7 +30,7 @@ KEY_END = 107
 KEY_RIGHTCTRL = 97
 KEY_RIGHTALT = 100
 YDOTOOL_SOCKET = os.environ.get("YDOTOOL_SOCKET", "/tmp/automove-ydotool.sock")
-CONFIG_FILE = Path(__file__).resolve().parent / "auto_mouse_move_config.json"
+CONFIG_FILE = Path(__file__).resolve().parent / "sticky_panote_config.json"
 
 
 DEFAULT_PAUSE_KEY_CODES = sorted(KEY_PAUSE_CODES)

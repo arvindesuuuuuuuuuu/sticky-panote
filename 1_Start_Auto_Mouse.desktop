@@ -2,7 +2,7 @@
 Type=Application
 Name=1 Start Auto Mouse
 Comment=Start moving the mouse every 30 seconds
-Exec=/home/arvin/Infosoft/automove/start_auto_mouse.sh
+Exec=/home/arvin/Infosoft/sticky-panote/start_auto_mouse.sh
 Terminal=false
 Icon=input-mouse
 Categories=Utility;

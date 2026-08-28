@@ -11,3 +11,11 @@ Browse the list on the Vacancies page and click Select next to your desired posi
 Once selected, you will be taken directly to the Application Profile to complete your application.
 
 can you make that condition? like exclude a PO with **SALES INFORMATION that has sales invoice receipt type** 	
+
+<td class="" style="width: 50%;">
+                                        (5.0)<br>
+                                        (3.0-4.99)<br>
+                                        (3.0-3.99)<br>
+                                        (2.0-2.99)<br>
+                                        (1.0-1.99)<br>
+                                    </td>

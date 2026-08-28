@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Sticky Panote
+Comment=Native GNOME notes with AutoMove controls and Hubstaff work startup
+Exec=/home/arvin/Infosoft/sticky-panote/start_sticky_panote.sh
+Terminal=false
+Icon=accessories-text-editor
+StartupWMClass=com.infosoft.StickyPanote
+Categories=Utility;TextEditor;
+X-GNOME-Autostart-enabled=true

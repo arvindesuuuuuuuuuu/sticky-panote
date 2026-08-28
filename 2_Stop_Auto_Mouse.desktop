@@ -2,7 +2,7 @@
 Type=Application
 Name=2 Stop Auto Mouse
 Comment=Stop moving the mouse
-Exec=/home/arvin/Infosoft/automove/stop_auto_mouse.sh
+Exec=/home/arvin/Infosoft/sticky-panote/stop_auto_mouse.sh
 Terminal=false
 Icon=process-stop
 Categories=Utility;

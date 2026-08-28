@@ -1,0 +1,54 @@
+{
+  "active_note_index": 6,
+  "notes": [
+    {
+      "title": "Note 1",
+      "content": "Note 1\n\n1.Start a new application\nClick the Create New Application button located below the Application History table.\n\n2.Select a vacant position\nBrowse the list on the Vacancies page and click Select next to your desired position.\n(Note: If you selected a position before logging in, you will skip this step automatically.) <- in italic para noticeable\n\n3.Proceed to your profile\nOnce selected, you will be taken directly to the Application Profile to complete your application.\n\ncan you make that condition? like exclude a PO with **SALES INFORMATION that has sales invoice receipt type** \t\n\n<td class=\"\" style=\"width: 50%;\">\n                                        (5.0)<br>\n                                        (3.0-4.99)<br>\n                                        (3.0-3.99)<br>\n                                        (2.0-2.99)<br>\n                                        (1.0-1.99)<br>\n                                    </td>",
+      "file": "note-1.txt",
+      "custom_title": false,
+      "pinned": false
+    },
+    {
+      "title": "artisan list - all c\u2026",
+      "content": "artisan list - all commands\n\nHow to create new Model?\n\nI use my customized creations, but first used this on creating new Model with all its package.\nartisan make:model ModelName -a\nrm app\\Http\\Controllers\\ModelNameController\nartisan make:controller ModelNameController -r\nrm app\\Http\\Requests\\StoreModelName\nrm app\\Http\\Requests\\UpdateModelName\nartisan make:requests ModelName\n\nls\npwd\ncd infosoft\nls\t\ncd laradock/ (change laradock to actual folder directory)\ndocker compose exec workspace bash\nls\nartisan route:list\n\n//storage link for viewing uploads\nartisan storage:link\nls public | grep storage\nls public/storage\n\n//install composer\ncd laradock/\ndocker compose exec workspace bash\ncomposer install\nartisan migrate\nartisan db:seed\n\n//fresh migrate\nartisan migrate:fresh --seed\n\n\n//troubleshoot\nartisan optimize:clear\nartisan migrate:status\n\n//create .env file node js\ntouch .env\n\n//creating seed\ncd lts-panabo-api/\nsu laradock\nartisan make:seeder [filename]\n\n//Run Code\nartisan db:seed --class=OldOfficialSeeder\nartisan db:seed --class=BidDocxAssignmentsBladeFileSeeder\n\n//Push specific file\ngit status\ngit branch\ngit add .\ngit status\ngit commit -m \"Create seeder for old officials dependent on users.csv\" \"\" for the comment changes for the push\ngit log\ngit remote -v\ngit branch\ngit push origin resolution-seeders\ngit log\n\n//Push all changes\ncd project-name\tx\ngit status\ngit add .\ngit commit -m \"Your commit message\"\ngit push origin main\n\n//Pull specific file\ngit pull origin resolution-seeders\n\n//Pull all changes\ncd project-name\ngit pull origin main\n\n//Create and Switch to the New Branch\ngit checkout -b branch-name\n\n//Get the latest updated in the parent branch (no fast forward)\ngit pull origin dev --no-ff\ngit add .\ngit commit -m \"\"\ngit push origin dev_arvin(branch name)\nthen merge the from dev_arvin and to dev\napproved and merge squash\n\n//Docker\nsudo systemctl stop docker -temp stop docker\n\n//restart laradock\ndocker compose down\ndocker compose up -d nginx postgres pgadmin\n\n//xampp\nsudo /opt/lampp/lampp start - start all services\nsudo /opt/lampp/manager-linux-x64.run\n\n//sales-api\nsudo chmod -R 777 storage\n\n\nPPMP-DAVOC-APP\npassword: Infosoftppmp2024!\n\nHCDC-Research\npassword: Infosofthcdc2026!\n\nRun to localhost\n\tHOST=0.0.0.0 npm run dev\n\t\tNODE_OPTIONS=--openssl-legacy-provider npm run serve\n\t\nautomousemove\n\nstart\n./start_auto_mouse.sh\nGUI\n./start_sticky_panote.sh\n\nstop\n./stop_auto_mouse.sh\nctrl + alt + pause/break\n\n-------------->Deploying the system for front-end<--------------\nPR and Merge Squash\nBefore deploying make sure to change the .env file into staging api and delete the dist folder [if exist]\n\nnpm run generate\n\nscp -r ./dist root@159.223.86.244:/home/sales/sales-app123[rename the file to avoid duplication]\n\naccess the server\n\nssh root@[ip address of the server]\n\nlocate the sales folder\n\ndelete old file\nrm -rf sales-app\n\nrename to replace the old to new file\nmv sales-app123 sales-app\n\n\n-------------->Deploying the system for back-end<--------------\nPR and Merge\nBefore deploying make sure to checkout to parent branch first\n\naccess the server\n\nssh root@[ip address of the server]\n\ncd /home\ncd /sales/sales-api\ngit fetch infosoft\ngit pull infosoft dev-ojt[parent branch]\n",
+      "file": "note-2.txt",
+      "custom_title": false,
+      "pinned": false
+    },
+    {
+      "title": "Note 2",
+      "content": "Note 2\n\nSelect * from users order by id desc\nSelect * from leave_credits order by id desc\n\nNot Required\n-Voluntary Work\n-Work Experience\n-Other Information\n-L&D\n\n\n-the Other Components fixed the value the has no behavioral indicator\n-arrange fixed position from Basic, Intermediate, Advanced, Superior in the selection\n\nNON Plantilla\n-COS\n-Job Order\n\nnot showing Tranche, SG and Step and can input starting salary\n-COS\n-Elective\n-JO\n-Permanent\n\nadd validation in make regular button\n\n35 36 38",
+      "file": "note-3.txt",
+      "custom_title": false,
+      "pinned": false
+    },
+    {
+      "title": "commit comment",
+      "content": "commit comment\n\n\nweb\n\ncontinuing the process for ipcr and opcr especially for the ratings\n\n\napi\n\n\ncontinuing working on the ipcr and opcr rating then also connected into the L&D the lowest Remarks IPCR",
+      "file": "note-4.txt",
+      "custom_title": false,
+      "pinned": false
+    },
+    {
+      "title": "Promp area",
+      "content": "and im wondering where to create this Individual performance standards?\n\n\n\nAssessor 1\npanelist8@gmail.com\n\nAssessor 2\nhahexa8857@kingcq.com\n\nactual accomplishment required field\nmovs is optional",
+      "file": "note-9.txt",
+      "custom_title": true,
+      "pinned": false
+    },
+    {
+      "title": "Andrew",
+      "content": "Andrew\nvowece3358@copawoke.com\n\nAlexis\nhahexa8857@kingcq.com\n\nLucy T II\njusttest389@gmail.com\n\nrevamp the flow \n\nchange the files and and file name of the folder to sticky panote\n",
+      "file": "note-11.txt",
+      "custom_title": false,
+      "pinned": false
+    },
+    {
+      "title": "employee who has 2 b\u2026",
+      "content": "employee who has 2 below the lowest score will be endorsed on L&D for capacity development",
+      "file": "note-16.txt",
+      "custom_title": false,
+      "pinned": false
+    }
+  ]
+}

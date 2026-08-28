@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/home/arvin/Infosoft/automove"
+APP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PID_FILE="$APP_DIR/auto_mouse_move.pid"
 YDOTOOLD_PID_FILE="$APP_DIR/ydotoold.pid"
 LOG_FILE="$APP_DIR/auto_mouse_move.log"
+WORKER_SCRIPT="$APP_DIR/auto_mouse_move.py"
 YDOTOOL_SOCKET="/tmp/automove-ydotool.sock"
 SILENT=false
 WORKER_ENV=""
@@ -20,8 +21,17 @@ notify() {
   fi
 }
 
+worker_is_running() {
+  local pid="${1:-}"
+
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  [[ -r "/proc/$pid/cmdline" ]] || return 1
+  grep -Fzxq -- "$WORKER_SCRIPT" "/proc/$pid/cmdline"
+}
+
 if [[ -f "$PID_FILE" ]]; then
-  if kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+  PID="$(tr -d '[:space:]' < "$PID_FILE")"
+  if worker_is_running "$PID"; then
     notify "Already running."
     exit 0
   fi
@@ -43,5 +53,5 @@ if [[ ! -S "$YDOTOOL_SOCKET" ]]; then
   sleep 1
 fi
 
-sg input -c "setsid env ${WORKER_ENV}YDOTOOL_SOCKET='$YDOTOOL_SOCKET' python3 -u '$APP_DIR/auto_mouse_move.py' > '$LOG_FILE' 2>&1 < /dev/null & echo \$! > '$PID_FILE'"
+sg input -c "setsid env ${WORKER_ENV}YDOTOOL_SOCKET='$YDOTOOL_SOCKET' python3 -u '$WORKER_SCRIPT' > '$LOG_FILE' 2>&1 < /dev/null & echo \$! > '$PID_FILE'"
 notify "Started."

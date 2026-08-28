@@ -1,2 +1,4 @@
-# No Python packages are required.
-# System package required on Ubuntu Wayland: ydotool
+# Python packages used by the tray companion: pystray, Pillow
+# Ubuntu packages used by the native interface: python3-gi, gir1.2-gtk-4.0,
+# gir1.2-adw-1
+# System package required for AutoMove on Ubuntu Wayland: ydotool

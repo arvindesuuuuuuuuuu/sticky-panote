@@ -118,7 +118,7 @@ automousemove
 start
 ./start_auto_mouse.sh
 GUI
-./start_auto_mouse_gui.sh
+./start_sticky_panote.sh
 
 stop
 ./stop_auto_mouse.sh
@@ -130,7 +130,7 @@ Before deploying make sure to change the .env file into staging api and delete t
 
 npm run generate
 
-scp -r ./dist root@159.223.86.244:/home/sales/sales-app[rename the file to avoid duplication]
+scp -r ./dist root@159.223.86.244:/home/sales/sales-app123[rename the file to avoid duplication]
 
 access the server
 
@@ -142,7 +142,7 @@ delete old file
 rm -rf sales-app
 
 rename to replace the old to new file
-mv sales-app100 sales-app
+mv sales-app123 sales-app
 
 
 -------------->Deploying the system for back-end<--------------
@@ -155,6 +155,5 @@ ssh root@[ip address of the server]
 
 cd /home
 cd /sales/sales-api
-git fetch origin
-git pull origin dev-ojt[parent branch]
-
+git fetch infosoft
+git pull infosoft dev-ojt[parent branch]

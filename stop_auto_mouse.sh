@@ -1,16 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/home/arvin/Infosoft/automove"
+APP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PID_FILE="$APP_DIR/auto_mouse_move.pid"
 YDOTOOLD_PID_FILE="$APP_DIR/ydotoold.pid"
+WORKER_SCRIPT="$APP_DIR/auto_mouse_move.py"
 YDOTOOL_SOCKET="/tmp/automove-ydotool.sock"
 STOPPED=false
 
-if [[ -f "$PID_FILE" ]]; then
-  PID="$(cat "$PID_FILE")"
+worker_is_running() {
+  local pid="${1:-}"
 
-  if kill -0 "$PID" 2>/dev/null; then
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  [[ -r "/proc/$pid/cmdline" ]] || return 1
+  grep -Fzxq -- "$WORKER_SCRIPT" "/proc/$pid/cmdline"
+}
+
+ydotoold_is_running() {
+  local pid="${1:-}"
+
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  [[ -r "/proc/$pid/cmdline" ]] || return 1
+  grep -Fzxq -- "ydotoold" "/proc/$pid/cmdline" &&
+    grep -Fzxq -- "--socket-path=$YDOTOOL_SOCKET" "/proc/$pid/cmdline"
+}
+
+if [[ -f "$PID_FILE" ]]; then
+  PID="$(tr -d '[:space:]' < "$PID_FILE")"
+
+  if worker_is_running "$PID"; then
     kill "$PID"
     STOPPED=true
   fi
@@ -18,8 +36,8 @@ if [[ -f "$PID_FILE" ]]; then
 fi
 
 if [[ -f "$YDOTOOLD_PID_FILE" ]]; then
-  YDOTOOLD_PID="$(cat "$YDOTOOLD_PID_FILE")"
-  if kill -0 "$YDOTOOLD_PID" 2>/dev/null; then
+  YDOTOOLD_PID="$(tr -d '[:space:]' < "$YDOTOOLD_PID_FILE")"
+  if ydotoold_is_running "$YDOTOOLD_PID"; then
     kill "$YDOTOOLD_PID"
   fi
   rm -f "$YDOTOOLD_PID_FILE"
