@@ -9,6 +9,12 @@ CONFIG_FILE="$APP_DIR/sticky_panote_config.json"
 # Hubstaff must use the normal user data directory to find its IPC socket.
 unset XDG_DATA_HOME SNAP SNAP_USER_DATA SNAP_USER_COMMON
 
+# Keep both automatic and manual starts inside the daily lunch schedule.
+if [[ "$(TZ=Asia/Manila date +%H)" == "12" ]]; then
+    echo "$(date --iso-8601=seconds) Hubstaff lunch break ends at 1:00 PM"
+    exit 0
+fi
+
 if [[ "${1:-}" == "--if-enabled" ]]; then
     if ! python3 - "$CONFIG_FILE" <<'PY'
 import json
@@ -54,6 +60,11 @@ for _attempt in {1..15}; do
     fi
     sleep 2
 done
+
+# Login can take long enough to cross noon; check again before resuming.
+if [[ "$(TZ=Asia/Manila date +%H)" == "12" ]]; then
+    exit 0
+fi
 
 if "$HUBSTAFF_CLI" resume; then
     echo "$(date --iso-8601=seconds) Hubstaff timer resumed"

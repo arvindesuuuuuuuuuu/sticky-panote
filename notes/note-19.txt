@@ -1,0 +1,8 @@
+OPCR Flow
+
+Draft → For Review & Approval → Automate Generated Assigned Individual IPCR's and its Semester → For accomplishment → for Assessement → for Final Rating
+
+IPCR Flow
+
+Generated IPCR Individuals → Assigned Signatories → Set IPCR Standards → for Discussion → for Approval → fo accomplishment → for reviewal → for assessment → for final rating
+

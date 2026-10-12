@@ -1,0 +1,40 @@
+TESTS
+Azarcon, Glosan Mae D.
+azarcon96r1775@gmail.com	
+
+Gaytos, Jennah Marie B.
+gaytos99r1954@gmail.com
+
+Solana, Chermie L.
+solana88r1841@gmail.com
+
+Galaura, Edilberto B.
+galaura87r1678@gmail.com
+
+
+//promp cursor
+-remove the e sign enter password in opcr and ipcr signatories
+-if have save draft change the button IDP Request to Edit IDP Request on action button
+
+
+//arrange fields on the idp request
+//fix the final rating error in final rating using e sign and check also on the opcr e sign too
+//on loyalty awards & retirement incentives change to small option in Validation decision 
+//add the leave application request if disapprove just to record the leave 
+//
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//fix later
+-no actual accomplishments and rating on ipcr pdf and missing approved and review signature on wet sign, check also the bulk wet sign only 1 employee is working.
+
+//add dialog if the user is not save draft in cancel and X icon the submit idp request after entering the e sign
+
+
+//7.B -> 7.A -> 7.C OR 7.D for confirmation
+
+//ask travel request if needed the invitation for any training
+
+//the negative leave credits will be moved in undertime
+
+//ask about the other remittance

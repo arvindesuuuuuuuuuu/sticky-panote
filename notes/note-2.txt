@@ -157,3 +157,4 @@ cd /home
 cd /sales/sales-api
 git fetch infosoft
 git pull infosoft dev-ojt[parent branch]
+		

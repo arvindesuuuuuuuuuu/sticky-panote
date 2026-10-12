@@ -8,6 +8,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import gi
 
@@ -35,6 +36,12 @@ KEY_LEFTCTRL = 29
 KEY_LEFTALT = 56
 DEFAULT_PAUSE_KEY_CODES = [99, 119, 411]
 DEFAULT_STOP_KEY_CODE = 107
+HUBSTAFF_TIMEZONE = ZoneInfo("Asia/Manila")
+
+
+def hubstaff_lunch_break(now=None):
+    now = now if now is not None else datetime.now(HUBSTAFF_TIMEZONE)
+    return now.hour == 12
 
 
 def load_app_config():
@@ -185,6 +192,9 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         self.save_source = None
         self.status_source = None
         self.hubstaff_status_source = None
+        self.hubstaff_lunch_resume_date = load_app_config().get(
+            "hubstaff_lunch_resume_date"
+        )
         self.editor_font_size = 11
         self.background_mode = load_app_config().get("background_mode", "light")
         if self.background_mode not in {"light", "dark"}:
@@ -941,6 +951,8 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         self.refresh_status()
 
     def start_hubstaff_work(self):
+        if hubstaff_lunch_break():
+            return
         if not HUBSTAFF_SCRIPT.is_file():
             self.show_error("Hubstaff Start Failed", "The Hubstaff launcher is missing.")
             return
@@ -1018,17 +1030,75 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         self.activity_row.set_subtitle(f"{status} • {activity}")
         self.start_pause_button.set_label(action)
         self.stop_button.set_sensitive(running)
+        application = self.get_application()
+        application.lookup_action("automove-start").set_enabled(not running or paused)
+        application.lookup_action("automove-pause").set_enabled(running and not paused)
+        application.lookup_action("automove-stop").set_enabled(running)
         self.status_source = GLib.timeout_add(1500, self.refresh_status)
         return GLib.SOURCE_REMOVE
+
+    def apply_hubstaff_lunch_schedule(self, tracking, now=None):
+        now = now if now is not None else datetime.now(HUBSTAFF_TIMEZONE)
+        today = now.date().isoformat()
+        command = None
+        if hubstaff_lunch_break(now) and tracking:
+            command = "stop"
+        elif hubstaff_lunch_break(now):
+            self.hubstaff_lunch_resume_date = today
+        elif now.hour >= 13 and self.hubstaff_lunch_resume_date == today:
+            if tracking:
+                self.hubstaff_lunch_resume_date = None
+            else:
+                command = "resume"
+        elif self.hubstaff_lunch_resume_date not in (None, today):
+            self.hubstaff_lunch_resume_date = None
+
+        if command is not None:
+            try:
+                result = subprocess.run(
+                    [str(HUBSTAFF_CLI), command],
+                    check=False,
+                    env=clean_hubstaff_environment(),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=2,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                print(f"Hubstaff lunch {command} failed: {exc}", file=sys.stderr)
+                return False
+            if result.returncode != 0:
+                return False
+            self.hubstaff_lunch_resume_date = today if command == "stop" else None
+
+        saved_date = load_app_config().get("hubstaff_lunch_resume_date")
+        if saved_date != self.hubstaff_lunch_resume_date:
+            try:
+                save_app_config(
+                    {"hubstaff_lunch_resume_date": self.hubstaff_lunch_resume_date}
+                )
+            except OSError as exc:
+                print(f"Cannot save Hubstaff lunch state: {exc}", file=sys.stderr)
+        return command is not None
 
     def refresh_hubstaff_status(self):
         if self.hubstaff_status_source is not None:
             GLib.source_remove(self.hubstaff_status_source)
             self.hubstaff_status_source = None
         status, tracking = read_hubstaff_status()
+        if self.apply_hubstaff_lunch_schedule(tracking):
+            status, tracking = read_hubstaff_status()
+        lunch_break = hubstaff_lunch_break()
+        if lunch_break:
+            status = (
+                "Lunch break • Resumes at 1:00 PM"
+                if self.hubstaff_lunch_resume_date
+                else "Lunch break • 12:00–1:00 PM"
+            )
         self.hubstaff_row.set_subtitle(status)
-        self.hubstaff_start_button.set_label("Tracking" if tracking else "Start Work")
-        self.hubstaff_start_button.set_sensitive(not tracking)
+        self.hubstaff_start_button.set_label(
+            "Lunch Break" if lunch_break else "Tracking" if tracking else "Start Work"
+        )
+        self.hubstaff_start_button.set_sensitive(not tracking and not lunch_break)
         self.hubstaff_status_source = GLib.timeout_add(
             5000, self.refresh_hubstaff_status
         )
@@ -1080,6 +1150,11 @@ class StickyPanoteApplication(Adw.Application):
 
     def do_startup(self):
         Adw.Application.do_startup(self)
+        for name in ("automove-start", "automove-pause", "automove-stop"):
+            action = Gio.SimpleAction.new(name, None)
+            action.set_enabled(False)
+            action.connect("activate", self.on_automove_action)
+            self.add_action(action)
         Gtk.Window.set_default_icon_name("accessories-text-editor")
         display = Gdk.Display.get_default()
         Gtk.StyleContext.add_provider_for_display(
@@ -1147,6 +1222,22 @@ class StickyPanoteApplication(Adw.Application):
         if self.window is not None:
             self.window.show_from_tray()
         return GLib.SOURCE_CONTINUE
+
+    def on_automove_action(self, action, _parameter):
+        if self.window is None:
+            return
+        running = app_is_running()
+        paused = running and last_pause_state(read_log_tail())
+        if action.get_name() == "automove-start":
+            if not running:
+                self.window.start_worker()
+            elif paused:
+                self.window.toggle_pause()
+        elif action.get_name() == "automove-pause":
+            if running and not paused:
+                self.window.toggle_pause()
+        elif action.get_name() == "automove-stop" and running:
+            self.window.stop_worker()
 
     def on_quit_signal(self):
         if self.window is not None:
