@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Sticky Panote — native GNOME notes with AutoMove controls."""
 
+import configparser
 import json
 import os
 import signal
@@ -19,17 +20,19 @@ from gi.repository import Adw, Gdk, Gio, GLib, GLibUnix, GObject, Gtk
 
 APP_ID = "com.infosoft.StickyPanote"
 APP_DIR = Path(__file__).resolve().parent
-PID_FILE = APP_DIR / "auto_mouse_move.pid"
-LOG_FILE = APP_DIR / "auto_mouse_move.log"
+DATA_DIR = Path(os.environ.get("STICKY_PANOTE_DATA_DIR", APP_DIR))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+PID_FILE = DATA_DIR / "auto_mouse_move.pid"
+LOG_FILE = DATA_DIR / "auto_mouse_move.log"
 START_SCRIPT = APP_DIR / "start_auto_mouse.sh"
 STOP_SCRIPT = APP_DIR / "stop_auto_mouse.sh"
 TRAY_SCRIPT = APP_DIR / "sticky_panote_tray.py"
 HUBSTAFF_SCRIPT = APP_DIR / "start_hubstaff_work.sh"
 HUBSTAFF_CLI = Path("/home/arvin/Hubstaff/HubstaffCLI.bin.x86_64")
-CONFIG_FILE = APP_DIR / "sticky_panote_config.json"
-NOTES_FILE = APP_DIR / "sticky_panote_notes.txt"
-NOTES_DATA_FILE = APP_DIR / "sticky_panote_notes.json"
-NOTES_DIR = APP_DIR / "notes"
+CONFIG_FILE = DATA_DIR / "sticky_panote_config.json"
+NOTES_FILE = DATA_DIR / "sticky_panote_notes.txt"
+NOTES_DATA_FILE = DATA_DIR / "sticky_panote_notes.json"
+NOTES_DIR = DATA_DIR / "notes"
 YDOTOOL_SOCKET = "/tmp/automove-ydotool.sock"
 
 KEY_LEFTCTRL = 29
@@ -37,6 +40,55 @@ KEY_LEFTALT = 56
 DEFAULT_PAUSE_KEY_CODES = [99, 119, 411]
 DEFAULT_STOP_KEY_CODE = 107
 HUBSTAFF_TIMEZONE = ZoneInfo("Asia/Manila")
+
+
+def grab_focus_once(widget):
+    widget.grab_focus()
+    return GLib.SOURCE_REMOVE
+
+
+def autorun_file():
+    config_dir = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    return config_dir / "autostart" / f"{APP_ID}.desktop"
+
+
+def autorun_is_enabled():
+    entry = configparser.ConfigParser(interpolation=None)
+    try:
+        entry.read_string(autorun_file().read_text(encoding="utf-8"))
+        return (
+            entry.get("Desktop Entry", "Type") == "Application"
+            and bool(entry.get("Desktop Entry", "Exec"))
+            and not entry.getboolean("Desktop Entry", "Hidden", fallback=False)
+            and entry.getboolean("Desktop Entry", "X-GNOME-Autostart-enabled", fallback=True)
+        )
+    except (OSError, configparser.Error, ValueError):
+        return False
+
+
+def set_autorun(enabled):
+    path = autorun_file()
+    if not enabled:
+        path.unlink(missing_ok=True)
+        return
+    launcher = (
+        Path("/usr/bin/sticky-panote")
+        if APP_DIR == Path("/usr/lib/sticky-panote")
+        else APP_DIR / "start_sticky_panote.sh"
+    )
+    # Desktop Exec uses double quotes and escapes rather than shell quoting.
+    command = str(launcher).replace("%", "%%")
+    for character in ("\\", '"', "`", "$"):
+        command = command.replace(character, "\\" + character)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write_text(
+        path,
+        "[Desktop Entry]\nType=Application\nName=Sticky Panote\n"
+        'Comment=Start Sticky Panote after login\nExec="' + command + '"\n'
+        "Terminal=false\nIcon=accessories-text-editor\n"
+        "StartupWMClass=com.infosoft.StickyPanote\n"
+        "X-GNOME-Autostart-enabled=true\n",
+    )
 
 
 def hubstaff_lunch_break(now=None):
@@ -182,8 +234,9 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
     def __init__(self, application):
         super().__init__(application=application)
         self.set_title("Sticky Panote")
-        self.set_default_size(1080, 700)
-        self.set_size_request(720, 480)
+        self.set_default_size(1040, 720)
+        self.add_css_class("sticky-panote")
+        self.set_size_request(600, 440)
 
         self.notes = []
         self.active_note_index = 0
@@ -214,8 +267,8 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
 
     def _build_interface(self):
         self.split_view = Adw.OverlaySplitView()
-        self.split_view.set_min_sidebar_width(220)
-        self.split_view.set_max_sidebar_width(320)
+        self.split_view.set_min_sidebar_width(240)
+        self.split_view.set_max_sidebar_width(280)
         self.split_view.set_sidebar_width_fraction(0.25)
         self.set_content(self.split_view)
 
@@ -223,26 +276,25 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         self.content_view = self._build_content()
         self.split_view.set_sidebar(self.sidebar)
         self.split_view.set_content(self.content_view)
+        breakpoint = Adw.Breakpoint.new(Adw.BreakpointCondition.parse("max-width: 800sp"))
+        breakpoint.add_setter(self.split_view, "collapsed", True)
+        self.add_breakpoint(breakpoint)
 
     def _build_sidebar(self):
         toolbar_view = Adw.ToolbarView()
         header = Adw.HeaderBar()
-        header.set_title_widget(Adw.WindowTitle(title="Sticky Panote", subtitle="My Notes"))
+        header.set_title_widget(Adw.WindowTitle(title="Notes"))
 
-        new_button = Gtk.Button(icon_name="tab-new-symbolic", tooltip_text="New Note")
-        new_button.add_css_class("flat")
-        new_button.connect("clicked", lambda _button: self.new_note())
-        header.pack_start(new_button)
         toolbar_view.add_top_bar(header)
 
         sidebar_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         sidebar_box.add_css_class("sidebar")
 
         self.note_filter = Gtk.SearchEntry(placeholder_text="Search notes")
-        self.note_filter.set_margin_top(8)
-        self.note_filter.set_margin_bottom(8)
-        self.note_filter.set_margin_start(8)
-        self.note_filter.set_margin_end(8)
+        self.note_filter.set_margin_top(12)
+        self.note_filter.set_margin_bottom(12)
+        self.note_filter.set_margin_start(12)
+        self.note_filter.set_margin_end(12)
         self.note_filter.connect("search-changed", lambda _entry: self.render_note_list())
         sidebar_box.append(self.note_filter)
 
@@ -254,6 +306,7 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         self.note_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.note_list.set_activate_on_single_click(True)
         self.note_list.add_css_class("navigation-sidebar")
+        self.note_list.add_css_class("notes-list")
         self.note_list.connect("row-selected", self.on_note_row_selected)
         scroller.set_child(self.note_list)
         sidebar_box.append(scroller)
@@ -278,43 +331,39 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         )
         header.pack_start(sidebar_button)
 
-        self.window_title = Adw.WindowTitle(title="Note 1", subtitle="notes/note-1.txt")
+        self.window_title = Adw.WindowTitle(title="Sticky Panote")
         header.set_title_widget(self.window_title)
 
-        search_button = Gtk.Button(
+        self.search_button = Gtk.ToggleButton(
             icon_name="system-search-symbolic",
-            tooltip_text="Find in Note",
+            tooltip_text="Find in Note (Ctrl+F)",
         )
-        search_button.add_css_class("flat")
-        search_button.connect("clicked", lambda _button: self.focus_search())
-        header.pack_end(search_button)
-
-        self.controls_button = Gtk.ToggleButton(
-            icon_name="applications-system-symbolic",
-            tooltip_text="AutoMove Controls",
-        )
-        self.controls_button.add_css_class("flat")
-        self.controls_button.connect("toggled", self.on_controls_toggled)
-        header.pack_end(self.controls_button)
+        self.search_button.add_css_class("flat")
+        self.search_button.connect("toggled", self.on_search_toggled)
+        header.pack_end(self.search_button)
 
         new_button = Gtk.Button(icon_name="tab-new-symbolic", tooltip_text="New Note")
         new_button.add_css_class("flat")
         new_button.connect("clicked", lambda _button: self.new_note())
         header.pack_end(new_button)
+
+        self.controls_button = Gtk.MenuButton(
+            icon_name="emblem-system-symbolic",
+            tooltip_text="Work Services and Startup",
+        )
+        self.controls_button.add_css_class("flat")
+        self.controls_popover = Gtk.Popover()
+        self.controls_popover.set_child(self._build_controls_panel())
+        self.controls_button.set_popover(self.controls_popover)
+        header.pack_end(self.controls_button)
         toolbar_view.add_top_bar(header)
 
-        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.controls_revealer = Gtk.Revealer()
-        self.controls_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_DOWN)
-        self.controls_revealer.set_child(self._build_controls_panel())
-        root.append(self.controls_revealer)
-        root.append(self._build_editor())
-
-        toolbar_view.set_content(root)
+        toolbar_view.set_content(self._build_editor())
         return toolbar_view
 
     def _build_controls_panel(self):
-        clamp = Adw.Clamp(maximum_size=760)
+        clamp = Adw.Clamp(maximum_size=440)
+        clamp.set_size_request(440, -1)
         clamp.set_margin_top(12)
         clamp.set_margin_bottom(12)
         clamp.set_margin_start(12)
@@ -322,9 +371,8 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
 
         group = Adw.PreferencesGroup(
             title="Work Services",
-            description="Control AutoMove and Hubstaff without leaving Sticky Panote.",
         )
-        row = Adw.ActionRow(title="Status", subtitle="Ready")
+        row = Adw.ActionRow(title="AutoMove", subtitle="Ready")
         self.activity_row = row
 
         self.start_pause_button = Gtk.Button(label="Start")
@@ -334,7 +382,7 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         row.add_suffix(self.start_pause_button)
 
         self.stop_button = Gtk.Button(label="Stop")
-        self.stop_button.add_css_class("destructive-action")
+        self.stop_button.add_css_class("flat")
         self.stop_button.set_valign(Gtk.Align.CENTER)
         self.stop_button.connect("clicked", lambda _button: self.stop_worker())
         row.add_suffix(self.stop_button)
@@ -345,7 +393,7 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
             subtitle="Checking status…",
         )
         self.hubstaff_start_button = Gtk.Button(label="Start Work")
-        self.hubstaff_start_button.add_css_class("suggested-action")
+        self.hubstaff_start_button.add_css_class("flat")
         self.hubstaff_start_button.set_valign(Gtk.Align.CENTER)
         self.hubstaff_start_button.connect(
             "clicked", lambda _button: self.start_hubstaff_work()
@@ -355,7 +403,7 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
 
         auto_start_row = Adw.ActionRow(
             title="Auto Start Hubstaff",
-            subtitle="Resume the last active project when Sticky Panote starts.",
+            subtitle="Resume your project when the app opens.",
         )
         self.hubstaff_auto_start_switch = Gtk.Switch()
         self.hubstaff_auto_start_switch.set_valign(Gtk.Align.CENTER)
@@ -369,71 +417,86 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         auto_start_row.set_activatable_widget(self.hubstaff_auto_start_switch)
         group.add(auto_start_row)
 
+        autorun_row = Adw.ActionRow(
+            title="Autorun at Login",
+            subtitle="Open the app when you sign in.",
+        )
+        self.autorun_switch = Gtk.Switch()
+        self.autorun_switch.set_valign(Gtk.Align.CENTER)
+        self.autorun_switch.set_active(autorun_is_enabled())
+        self.autorun_handler = self.autorun_switch.connect(
+            "notify::active", self.on_autorun_changed
+        )
+        autorun_row.add_suffix(self.autorun_switch)
+        autorun_row.set_activatable_widget(self.autorun_switch)
+        group.add(autorun_row)
+
         clamp.set_child(group)
         return clamp
 
     def _build_editor(self):
         editor_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        editor_box.add_css_class("note-surface")
         editor_box.set_vexpand(True)
 
-        action_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        action_bar.add_css_class("toolbar")
-        action_bar.set_margin_top(6)
-        action_bar.set_margin_bottom(6)
-        action_bar.set_margin_start(12)
-        action_bar.set_margin_end(12)
+        action_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        action_bar.add_css_class("note-heading")
+        action_bar.set_margin_top(22)
+        action_bar.set_margin_bottom(10)
+        action_bar.set_margin_start(32)
+        action_bar.set_margin_end(24)
+
+        self.title_entry = Gtk.Entry(placeholder_text="Untitled note")
+        self.title_entry.set_hexpand(True)
+        self.title_entry.add_css_class("note-title")
+        self.title_entry.connect("activate", lambda _entry: self.rename_note())
+        self.title_entry.connect("notify::has-focus", self.on_title_focus_changed)
+        action_bar.append(self.title_entry)
 
         self.pin_button = Gtk.ToggleButton(
-            icon_name="non-starred-symbolic",
-            tooltip_text="Pin Note",
+            icon_name="non-starred-symbolic", tooltip_text="Pin Note",
         )
         self.pin_button.add_css_class("flat")
         self.pin_button.connect("toggled", self.on_pin_toggled)
         action_bar.append(self.pin_button)
 
-        self.title_entry = Gtk.Entry(placeholder_text="Note title")
-        self.title_entry.set_hexpand(True)
-        self.title_entry.add_css_class("title-4")
-        self.title_entry.connect("activate", lambda _entry: self.rename_note())
-        self.title_entry.connect("notify::has-focus", self.on_title_focus_changed)
-        action_bar.append(self.title_entry)
-
         checklist_button = Gtk.Button(
-            icon_name="checkbox-checked-symbolic",
-            tooltip_text="Insert Checklist",
+            icon_name="checkbox-checked-symbolic", tooltip_text="Insert Checklist",
         )
         checklist_button.add_css_class("flat")
         checklist_button.connect("clicked", lambda _button: self.insert_checklist())
         action_bar.append(checklist_button)
 
-        time_button = Gtk.Button(
-            icon_name="document-open-recent-symbolic",
-            tooltip_text="Insert Timestamp",
+        more_button = Gtk.MenuButton(
+            icon_name="view-more-symbolic", tooltip_text="Note Options",
         )
-        time_button.add_css_class("flat")
-        time_button.connect("clicked", lambda _button: self.insert_timestamp())
-        action_bar.append(time_button)
-
-        duplicate_button = Gtk.Button(
-            icon_name="edit-copy-symbolic",
-            tooltip_text="Duplicate Note",
+        more_button.add_css_class("flat")
+        options = Gtk.Popover()
+        option_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        option_box.set_margin_top(6)
+        option_box.set_margin_bottom(6)
+        option_box.set_margin_start(6)
+        option_box.set_margin_end(6)
+        for label, icon, callback in (
+            ("Insert timestamp", "document-open-recent-symbolic", self.insert_timestamp),
+            ("Duplicate note", "edit-copy-symbolic", self.duplicate_note),
+        ):
+            button = self._menu_button(label, icon, callback, options)
+            option_box.append(button)
+        option_box.append(Gtk.Separator())
+        self.theme_button = self._menu_button(
+            "Switch appearance", "weather-clear-night-symbolic", self.toggle_background, options,
         )
-        duplicate_button.add_css_class("flat")
-        duplicate_button.connect("clicked", lambda _button: self.duplicate_note())
-        action_bar.append(duplicate_button)
-
-        self.theme_button = Gtk.Button(tooltip_text="Toggle Light or Dark Appearance")
-        self.theme_button.add_css_class("flat")
-        self.theme_button.connect("clicked", lambda _button: self.toggle_background())
-        action_bar.append(self.theme_button)
-
-        close_button = Gtk.Button(
-            icon_name="user-trash-symbolic",
-            tooltip_text="Delete Note",
+        option_box.append(self.theme_button)
+        option_box.append(Gtk.Separator())
+        delete_button = self._menu_button(
+            "Delete note", "user-trash-symbolic", self.close_active_note, options,
         )
-        close_button.add_css_class("flat")
-        close_button.connect("clicked", lambda _button: self.close_active_note())
-        action_bar.append(close_button)
+        delete_button.add_css_class("error")
+        option_box.append(delete_button)
+        options.set_child(option_box)
+        more_button.set_popover(options)
+        action_bar.append(more_button)
         editor_box.append(action_bar)
 
         self.search_revealer = Gtk.Revealer()
@@ -446,8 +509,15 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         self.search_entry.connect("search-changed", lambda _entry: self.find_in_note())
         self.search_entry.connect("stop-search", lambda _entry: self.clear_search())
         self.search_count = Gtk.Label()
+        self.search_count.add_css_class("dim-label")
         search_box.append(self.search_entry)
         search_box.append(self.search_count)
+        close_search_button = Gtk.Button(
+            icon_name="window-close-symbolic", tooltip_text="Close Search (Esc)",
+        )
+        close_search_button.add_css_class("flat")
+        close_search_button.connect("clicked", lambda _button: self.clear_search())
+        search_box.append(close_search_button)
         self.search_revealer.set_child(search_box)
         editor_box.append(self.search_revealer)
 
@@ -458,10 +528,10 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         self.note_text = Gtk.TextView()
         self.note_text.add_css_class("note-editor")
         self.note_text.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-        self.note_text.set_left_margin(24)
-        self.note_text.set_right_margin(24)
-        self.note_text.set_top_margin(18)
-        self.note_text.set_bottom_margin(18)
+        self.note_text.set_left_margin(36)
+        self.note_text.set_right_margin(36)
+        self.note_text.set_top_margin(12)
+        self.note_text.set_bottom_margin(32)
         self.note_text.set_monospace(False)
         self.note_text.get_buffer().connect("changed", self.on_note_changed)
 
@@ -475,22 +545,19 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
 
         status_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
         status_bar.add_css_class("statusbar")
-        status_bar.set_margin_top(6)
-        status_bar.set_margin_bottom(6)
-        status_bar.set_margin_start(14)
-        status_bar.set_margin_end(14)
+        status_bar.set_margin_top(10)
+        status_bar.set_margin_bottom(10)
+        status_bar.set_margin_start(36)
+        status_bar.set_margin_end(28)
         self.save_status = Gtk.Label(label="Saved", xalign=0)
         self.save_status.add_css_class("dim-label")
         self.save_status.set_hexpand(True)
         self.zoom_status = Gtk.Label(label="100%")
         self.zoom_status.add_css_class("dim-label")
-        encoding = Gtk.Label(label="UTF-8")
-        encoding.add_css_class("dim-label")
-        self.note_count = Gtk.Label(label="0 words • 0 characters")
+        self.note_count = Gtk.Label(label="0 words")
         self.note_count.add_css_class("dim-label")
         status_bar.append(self.save_status)
         status_bar.append(self.zoom_status)
-        status_bar.append(encoding)
         status_bar.append(self.note_count)
         editor_box.append(status_bar)
 
@@ -504,6 +571,22 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
             foreground="#ffffff",
         )
         return editor_box
+
+    def _menu_button(self, label, icon, callback, popover):
+        button = Gtk.Button()
+        button.add_css_class("flat")
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        image = Gtk.Image.new_from_icon_name(icon)
+        text = Gtk.Label(label=label, xalign=0)
+        text.set_hexpand(True)
+        box.append(image)
+        box.append(text)
+        button.set_child(box)
+        button.connect("clicked", lambda _button: (popover.popdown(), callback()))
+        if label == "Switch appearance":
+            self.theme_icon = image
+            self.theme_label = text
+        return button
 
     def _install_shortcuts(self):
         shortcuts = {
@@ -609,12 +692,11 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         self.pin_button.set_icon_name(
             "starred-symbolic" if note.get("pinned") else "non-starred-symbolic"
         )
-        self.window_title.set_title(note["title"])
-        self.window_title.set_subtitle(f"notes/{note['file']}")
+        self.set_title(f"{note['title']} — Sticky Panote")
         self.update_note_count()
         self.find_in_note()
         GLib.idle_add(self.finish_loading_note, self.active_note_index)
-        GLib.idle_add(self.note_text.grab_focus)
+        GLib.idle_add(grab_focus_once, self.note_text)
 
     def finish_loading_note(self, expected_index):
         if expected_index == self.active_note_index:
@@ -638,7 +720,16 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
                 content_match = query in note["content"].casefold()
                 if query and not title_match and not content_match:
                     continue
-                row = Adw.ActionRow(title=note["title"], subtitle=note["file"])
+                preview = " ".join(note["content"].split())
+                if preview.startswith(note["title"]):
+                    preview = preview[len(note["title"]):].strip()
+                row = Adw.ActionRow(
+                    title=GLib.markup_escape_text(note["title"]),
+                    subtitle=GLib.markup_escape_text(preview[:72] or "Empty note"),
+                )
+                row.set_title_lines(1)
+                row.set_subtitle_lines(1)
+                row.set_tooltip_text(note["title"])
                 row.note_index = index
                 if note.get("pinned"):
                     row.add_prefix(Gtk.Image.new_from_icon_name("starred-symbolic"))
@@ -671,7 +762,7 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
             title = first_line[:20] + ("…" if len(first_line) > 20 else "")
             note["title"] = title
             self.title_entry.set_text(title)
-            self.window_title.set_title(title)
+            self.set_title(f"{title} — Sticky Panote")
 
     def new_note(self):
         self.sync_active_note()
@@ -750,7 +841,7 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         if title != note["title"]:
             note["title"] = title
             note["custom_title"] = True
-            self.window_title.set_title(title)
+            self.set_title(f"{title} — Sticky Panote")
             self.render_note_list()
             self.save_note()
 
@@ -791,11 +882,24 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         self.note_text.grab_focus()
 
     def focus_search(self):
-        self.search_revealer.set_reveal_child(True)
-        GLib.idle_add(self.search_entry.grab_focus)
+        if not self.search_button.get_active():
+            self.search_button.set_active(True)
+        else:
+            GLib.idle_add(grab_focus_once, self.search_entry)
+
+    def on_search_toggled(self, button):
+        if button.get_active():
+            self.search_revealer.set_reveal_child(True)
+            GLib.idle_add(grab_focus_once, self.search_entry)
+        else:
+            self.clear_search()
 
     def clear_search(self):
+        if self.search_button.get_active():
+            self.search_button.set_active(False)
+            return
         self.search_entry.set_text("")
+        self.find_in_note()
         self.search_revealer.set_reveal_child(False)
         self.note_text.grab_focus()
 
@@ -843,11 +947,9 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         buffer = self.note_text.get_buffer()
         content = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True)
         words = len(content.split())
-        characters = len(content)
         word_label = "word" if words == 1 else "words"
-        character_label = "character" if characters == 1 else "characters"
         self.note_count.set_text(
-            f"{words} {word_label} • {characters} {character_label}"
+            f"{words} {word_label}"
         )
 
     def save_note(self):
@@ -906,15 +1008,14 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
         manager = Adw.StyleManager.get_default()
         if self.background_mode == "dark":
             manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
-            self.theme_button.set_icon_name("weather-clear-symbolic")
+            self.theme_icon.set_from_icon_name("weather-clear-symbolic")
+            self.theme_label.set_text("Use light appearance")
             self.theme_button.set_tooltip_text("Use Light Appearance")
         else:
             manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
-            self.theme_button.set_icon_name("weather-clear-night-symbolic")
+            self.theme_icon.set_from_icon_name("weather-clear-night-symbolic")
+            self.theme_label.set_text("Use dark appearance")
             self.theme_button.set_tooltip_text("Use Dark Appearance")
-
-    def on_controls_toggled(self, button):
-        self.controls_revealer.set_reveal_child(button.get_active())
 
     def run_command(self, command, error_title, environment=None):
         try:
@@ -977,6 +1078,15 @@ class StickyPanoteWindow(Adw.ApplicationWindow):
             save_app_config({"hubstaff_auto_start": switch.get_active()})
         except OSError as exc:
             self.show_error("Cannot Save Hubstaff Setting", str(exc))
+
+    def on_autorun_changed(self, switch, _param):
+        try:
+            set_autorun(switch.get_active())
+        except OSError as exc:
+            switch.handler_block(self.autorun_handler)
+            switch.set_active(autorun_is_enabled())
+            switch.handler_unblock(self.autorun_handler)
+            self.show_error("Cannot Save Autorun Setting", str(exc))
 
     def toggle_pause(self):
         if not app_is_running():
@@ -1175,13 +1285,37 @@ class StickyPanoteApplication(Adw.Application):
 
     def apply_editor_css(self, font_size):
         css = f"""
-            .note-editor {{
+            .sticky-panote .note-editor {{
                 font-family: Cantarell, Sans;
                 font-size: {font_size}pt;
-                line-height: 1.35;
+                line-height: 1.55;
             }}
-            .statusbar {{
-                border-top: 1px solid alpha(currentColor, 0.12);
+            .sticky-panote .note-surface {{
+                background: @view_bg_color;
+            }}
+            .sticky-panote .note-title {{
+                font-size: 24px;
+                font-weight: 600;
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                padding: 4px;
+                min-height: 36px;
+            }}
+            .sticky-panote .note-title:focus-within {{
+                box-shadow: inset 0 -2px alpha(@accent_bg_color, 0.5);
+            }}
+            .sticky-panote .notes-list row {{
+                border-radius: 10px;
+                margin: 2px 8px;
+            }}
+            .sticky-panote .notes-list row:selected {{
+                background: alpha(@accent_bg_color, 0.12);
+                color: @window_fg_color;
+            }}
+            .sticky-panote .statusbar {{
+                font-size: 11px;
+                border: none;
             }}
         """
         self.css_provider.load_from_string(css)

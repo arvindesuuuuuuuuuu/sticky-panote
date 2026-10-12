@@ -2,9 +2,11 @@
 set -euo pipefail
 
 APP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-PID_FILE="$APP_DIR/auto_mouse_move.pid"
-YDOTOOLD_PID_FILE="$APP_DIR/ydotoold.pid"
-LOG_FILE="$APP_DIR/auto_mouse_move.log"
+DATA_DIR="${STICKY_PANOTE_DATA_DIR:-$APP_DIR}"
+mkdir -p "$DATA_DIR"
+PID_FILE="$DATA_DIR/auto_mouse_move.pid"
+YDOTOOLD_PID_FILE="$DATA_DIR/ydotoold.pid"
+LOG_FILE="$DATA_DIR/auto_mouse_move.log"
 WORKER_SCRIPT="$APP_DIR/auto_mouse_move.py"
 YDOTOOL_SOCKET="/tmp/automove-ydotool.sock"
 SILENT=false
@@ -49,7 +51,7 @@ cd "$APP_DIR"
 
 if [[ ! -S "$YDOTOOL_SOCKET" ]]; then
   rm -f "$YDOTOOL_SOCKET"
-  sg input -c "setsid ydotoold --socket-path='$YDOTOOL_SOCKET' --socket-perm=0660 > '$APP_DIR/ydotoold.log' 2>&1 < /dev/null & echo \$! > '$YDOTOOLD_PID_FILE'"
+  sg input -c "setsid ydotoold --socket-path='$YDOTOOL_SOCKET' --socket-perm=0660 > '$DATA_DIR/ydotoold.log' 2>&1 < /dev/null & echo \$! > '$YDOTOOLD_PID_FILE'"
   sleep 1
 fi
 

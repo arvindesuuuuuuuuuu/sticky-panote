@@ -2,8 +2,9 @@
 set -euo pipefail
 
 APP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-PID_FILE="$APP_DIR/auto_mouse_move.pid"
-YDOTOOLD_PID_FILE="$APP_DIR/ydotoold.pid"
+DATA_DIR="${STICKY_PANOTE_DATA_DIR:-$APP_DIR}"
+PID_FILE="$DATA_DIR/auto_mouse_move.pid"
+YDOTOOLD_PID_FILE="$DATA_DIR/ydotoold.pid"
 WORKER_SCRIPT="$APP_DIR/auto_mouse_move.py"
 YDOTOOL_SOCKET="/tmp/automove-ydotool.sock"
 STOPPED=false

@@ -3,7 +3,7 @@ set -u
 
 HUBSTAFF_CLI="/home/arvin/Hubstaff/HubstaffCLI.bin.x86_64"
 APP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$APP_DIR/sticky_panote_config.json"
+CONFIG_FILE="${STICKY_PANOTE_DATA_DIR:-$APP_DIR}/sticky_panote_config.json"
 
 # Launchers started from Snap applications can inherit a private data path.
 # Hubstaff must use the normal user data directory to find its IPC socket.
